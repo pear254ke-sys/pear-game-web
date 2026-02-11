@@ -1,5 +1,5 @@
-
-function startGame(canvas){
+const running=true
+  const ctx=canvas.getContext("2d")
   canvas.width = 800;
   canvas.height = 400;
   const FIXED_STEP = 1 / 60;
@@ -28,14 +28,14 @@ function startGame(canvas){
   let accumulator = 0;
   let pearTimer = 0;
   let enemyTimer = 0;
-  const images=[
-    document.getElementById("background"),
-    document.getElementById("pear"),
-    document.getElementById("bomb"),
-    document.getElementById("player")
-  ]
-  const audio=[new Audio("../assets/eat.mp3"),new Audio("../assets/explosion.mp3"),new Audio("../assets/fireworks.mp3")]
-  audio[0].play()
+// const audio=[new Audio("../assets/eat.mp3"),new Audio("../assets/explosion.mp3"),new Audio("../assets/fireworks.mp3")]
+  const images = [
+document.getElementById("background"),
+document.getElementById("pear"),
+document.getElementById("bomb"),
+document.getElementById("player"),
+  ];
+  
   const restartBtn = {
     x: canvas.width / 2 - 80,
     y: canvas.height / 2 + 30,
@@ -139,12 +139,19 @@ function startGame(canvas){
   
     return -1;
   }
-  
+  function loadImage(src) {
+    const img = new Image();
+    img.src = src;
+    return img;
+  }
   
   function setPlayerPos(clientX, clientY) {
-    const r = canvas.getBoundingClientRect();
-    position[PLAYER_ID]     = clientX - r.left;
-    position[PLAYER_ID + 1] = clientY - r.top;
+    const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+
+  position[PLAYER_ID]     = (clientX - rect.left) * scaleX;
+  position[PLAYER_ID + 1] = (clientY - rect.top) * scaleY;
   }
   
   canvas.addEventListener("mousemove", e => {
@@ -279,6 +286,7 @@ function startGame(canvas){
     }
   }
   function animate(ts) {
+    if(!running) return
     requestAnimationFrame(animate);
   
     if (!lastTime) lastTime = ts;
@@ -295,5 +303,3 @@ function startGame(canvas){
   
   resetGame();
   requestAnimationFrame(animate);
-}
-export default startGame
