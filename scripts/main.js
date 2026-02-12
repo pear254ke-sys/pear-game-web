@@ -1,7 +1,7 @@
 const running=true
   const ctx=canvas.getContext("2d")
-  canvas.width = 800;
-  canvas.height = 400;
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
   const FIXED_STEP = 1 / 60;
   const STATE_PLAYING  = 0;
   const STATE_GAMEOVER = 1;
@@ -52,7 +52,11 @@ document.getElementById("player"),
     createPears();
     createEnemies();
   }
-  
+  canvas.addEventListener("resize",()=>{
+canvas.width=window.innerWidth
+canvas.height=window.innerHeight
+resetGame()
+  })
   function createPlayer() {
     size[PLAYER_ID]     = PLAYER_SIZE;
     size[PLAYER_ID + 1] = PLAYER_SIZE;
