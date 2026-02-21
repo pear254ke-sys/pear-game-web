@@ -1,41 +1,55 @@
-const running=true
+let running=true
   const ctx=canvas.getContext("2d")
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-  const FIXED_STEP = 1 / 60;
-  const STATE_PLAYING  = 0;
-  const STATE_GAMEOVER = 1;
-  const STATE_PAUSED   = 2;
-  const STATE_WON      = 3;
-  let gameState = STATE_PLAYING;
-  const PLAYER_ID = 0;
-  const PEAR_COUNT = 10;
-  const ENEMY_COUNT = 10;
-  const PEAR_START  = 2;
-  const ENEMY_START = PEAR_START + PEAR_COUNT * 2;
+  const GAME_STATES={
+    STATE_START:-1,
+    STATE_PLAYING:0,
+    STATE_PAUSED:1,
+    STATE_WON:2,
+    STATE_GAMEOVER:3
+  }
+  const PEAR={
+    PEAR_START:2,
+    PEAR_COUNT:10,
+    PEAR_RATE:1,
+    PEAR_SIZE:50,
+    noOfPearsOnScreen:4,
+pearTimer:0,
+  }
+  const ENEMY={
+    ENEMY_COUNT:10,
+    ENEMY_SIZE:50,
+    ENEMY_RATE:8,
+    ENEMY_START:PEAR.PEAR_START + PEAR.PEAR_COUNT * 2,
+    noOfBombsOnScreen:4,
+    enemyTimer:0,
+  }
+  const PLAYER={
+    PLAYER_ID:0,
+    PLAYER_SIZE:50
+  }
+  const TIMER={
+    lastTime:0,
+    accumulator:0,
+    FIXED_STEP:1/60
+  }
+  let gameState =GAME_STATES.STATE_START;
+
   const ENTITY_SIZE = 42;
-  const PLAYER_SIZE = 50;
-  const PEAR_SIZE   = 60;
-  const ENEMY_SIZE  = 50;
-  const PEAR_RATE  = 1;
-  const ENEMY_RATE = 8;
-  const noOfPearsOnScreen  = 4;
-  const noOfBombsOnScreen = 4;
   const position = new Float32Array(ENTITY_SIZE);
   const size     = new Float32Array(ENTITY_SIZE);
   const consumed = new Uint8Array(ENTITY_SIZE);
-  let lastTime = 0;
-  let accumulator = 0;
-  let pearTimer = 0;
-  let enemyTimer = 0;
 // const audio=[new Audio("../assets/eat.mp3"),new Audio("../assets/explosion.mp3"),new Audio("../assets/fireworks.mp3")]
-  const images = [
-document.getElementById("background"),
-document.getElementById("pear"),
-document.getElementById("bomb"),
-document.getElementById("player"),
-  ];
-  
+  const images = {backgroud:document.getElementById("background"),
+    pear:document.getElementById("pear"),
+    bomb:document.getElementById("bomb"),
+    player:document.getElementById("player"),
+    loadingScreen:document.getElementById("loading_screen"),
+    gameOverScreen:document.getElementById("gameover_screen"),
+    gameWonScreen:document.getElementById("win_screen"),
+    pausedScreen:document.getElementById("paused_screen")
+  }
   const restartBtn = {
     x: canvas.width / 2 - 80,
     y: canvas.height / 2 + 30,
@@ -45,39 +59,39 @@ document.getElementById("player"),
   
   
   function resetGame() {
-    gameState = STATE_PLAYING;
-    pearTimer = enemyTimer = 0;
+    gameState = GAME_STATES.STATE_START;
+    PEAR.pearTimer = ENEMY.enemyTimer = 0;
     consumed.fill(0);
     createPlayer();
     createPears();
     createEnemies();
   }
-  canvas.addEventListener("resize",()=>{
+canvas.addEventListener("resize",()=>{
 canvas.width=window.innerWidth
 canvas.height=window.innerHeight
 resetGame()
   })
   function createPlayer() {
-    size[PLAYER_ID]     = PLAYER_SIZE;
-    size[PLAYER_ID + 1] = PLAYER_SIZE;
-    position[PLAYER_ID]     = canvas.width / 2;
-    position[PLAYER_ID + 1] = canvas.height / 2;
+    size[PLAYER.PLAYER_ID]     = PLAYER.PLAYER_SIZE;
+    size[PLAYER.PLAYER_ID + 1] = PLAYER.PLAYER_SIZE;
+    position[PLAYER.PLAYER_ID]     = canvas.width / 2;
+    position[PLAYER.PLAYER_ID + 1] = canvas.height / 2;
   }
   
   function createPears() {
-    for (let i = PEAR_START; i < PEAR_START + PEAR_COUNT * 2; i += 2) {
-      position[i]     = Math.random() * (canvas.width - PEAR_SIZE);
-      position[i + 1] = Math.random() * (canvas.height - PEAR_SIZE);
-      size[i] = size[i + 1] = PEAR_SIZE;
+    for (let i = PEAR.PEAR_START; i < PEAR.PEAR_START + PEAR.PEAR_COUNT * 2; i += 2) {
+      position[i]     = Math.random() * (canvas.width - PEAR.PEAR_SIZE);
+      position[i + 1] = Math.random() * (canvas.height - PEAR.PEAR_SIZE);
+      size[i] = size[i + 1] = PEAR.PEAR_SIZE;
       consumed[i] = 0;
     }
   }
   
   function createEnemies() {
-    for (let i = ENEMY_START; i < ENEMY_START + ENEMY_COUNT * 2; i += 2) {
-      position[i]     = Math.random() * (canvas.width - ENEMY_SIZE);
-      position[i + 1] = Math.random() * (canvas.height - ENEMY_SIZE);
-      size[i] = size[i + 1] = ENEMY_SIZE;
+    for (let i = ENEMY.ENEMY_START; i < ENEMY.ENEMY_START + ENEMY.ENEMY_COUNT * 2; i += 2) {
+      position[i]     = Math.random() * (canvas.width - ENEMY.ENEMY_SIZE);
+      position[i + 1] = Math.random() * (canvas.height - ENEMY.ENEMY_SIZE);
+      size[i] = size[i + 1] = ENEMY.ENEMY_SIZE;
       consumed[i] = 0;
     }
   }
@@ -143,30 +157,25 @@ resetGame()
   
     return -1;
   }
-  function loadImage(src) {
-    const img = new Image();
-    img.src = src;
-    return img;
-  }
   
   function setPlayerPos(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
   const scaleX = canvas.width / rect.width;
   const scaleY = canvas.height / rect.height;
 
-  position[PLAYER_ID]     = (clientX - rect.left) * scaleX;
-  position[PLAYER_ID + 1] = (clientY - rect.top) * scaleY;
+  position[PLAYER.PLAYER_ID]     = (clientX - rect.left) * scaleX;
+  position[PLAYER.PLAYER_ID + 1] = (clientY - rect.top) * scaleY;
   }
   
   canvas.addEventListener("mousemove", e => {
-    if (gameState === STATE_PLAYING)
+    if (gameState === GAME_STATES.STATE_PLAYING)
       setPlayerPos(e.clientX, e.clientY);
   });
   
   canvas.addEventListener("touchstart", e => {
     e.preventDefault();
     const t = e.touches[0];
-    if (gameState === STATE_PLAYING)
+    if (gameState === GAME_STATES.STATE_PLAYING)
       setPlayerPos(t.clientX, t.clientY);
     else handleRestart(t.clientX, t.clientY);
   }, { passive: false });
@@ -174,21 +183,21 @@ resetGame()
   canvas.addEventListener("touchmove", e => {
     e.preventDefault();
     const t = e.touches[0];
-    if (gameState === STATE_PLAYING)
+    if (gameState === GAME_STATES.STATE_PLAYING)
       setPlayerPos(t.clientX, t.clientY);
   }, { passive: false });
   
   canvas.addEventListener("click", e => {
-    if (gameState !== STATE_PLAYING)
+    if (gameState !== GAME_STATES.STATE_PLAYING)
       handleRestart(e.clientX, e.clientY);
   });
   
-  document.addEventListener("keydown", e => {
-    if (e.code === "Space" || e.code === "KeyP") {
-      if (gameState === STATE_PLAYING) gameState = STATE_PAUSED;
-      else if (gameState === STATE_PAUSED) gameState = STATE_PLAYING;
-    }
-  });
+  // document.addEventListener("keydown", e => {
+  //   if (e.code === "Space" || e.code === "KeyP") {
+  //     if (gameState === STATE_PLAYING) gameState = STATE_PAUSED;
+  //     else if (gameState === STATE_PAUSED) gameState = STATE_PLAYING;
+  //   }
+  // });
   
   function handleRestart(x, y) {
     const r = canvas.getBoundingClientRect();
@@ -206,103 +215,124 @@ resetGame()
   }
   
   function update(dt) {
-    if (gameState !== STATE_PLAYING) return;
+    PEAR.pearTimer += dt;
+    ENEMY.enemyTimer += dt;
   
-    pearTimer += dt;
-    enemyTimer += dt;
-  
-    if (pearTimer >= PEAR_RATE) {
+    if (PEAR.pearTimer >= PEAR.PEAR_RATE) {
       createPears();
-      pearTimer = 0;
+      PEAR.pearTimer = 0;
     }
   
-    if (enemyTimer >= ENEMY_RATE) {
+    if (ENEMY.enemyTimer >= ENEMY.ENEMY_RATE) {
       createEnemies();
-      enemyTimer = 0;
+      ENEMY.enemyTimer = 0;
     }
   
-    const hitPear  = broadPhase(PLAYER_ID, PEAR_START, PEAR_COUNT, COLLISION_SCALE.pear);
-    const hitEnemy = broadPhase(PLAYER_ID, ENEMY_START, ENEMY_COUNT, COLLISION_SCALE.enemy);
+    const hitPear  = broadPhase(PLAYER.PLAYER_ID, PEAR.PEAR_START, PEAR.PEAR_COUNT, COLLISION_SCALE.pear);
+    const hitEnemy = broadPhase(PLAYER.PLAYER_ID, ENEMY.ENEMY_START, ENEMY.ENEMY_COUNT, COLLISION_SCALE.enemy);
     
   
     if (hitPear !== -1) {
       consumed[hitPear] = 1;
       size[hitPear] = size[hitPear + 1] = 0;
-      increaseSize(PLAYER_ID, 5);
+      increaseSize(PLAYER.PLAYER_ID, 5);
     }
   
     if (hitEnemy !== -1) {
       consumed[hitEnemy] = 1;
-      reduceSize(PLAYER_ID, 15);
+      reduceSize(PLAYER.PLAYER_ID, 15);
     }
   
-    for (let n = 0; n < noOfPearsOnScreen; n++) {
-      const i = PEAR_START + n * 2;
+    for (let n = 0; n < PEAR.noOfPearsOnScreen; n++) {
+      const i = PEAR.PEAR_START + n * 2;
       if (!consumed[i]) reduceSize(i, 0.1);
     }
   
-    for (let n = 0; n < noOfBombsOnScreen; n++) {
-      const i = ENEMY_START + n * 2;
+    for (let n = 0; n < ENEMY.noOfBombsOnScreen; n++) {
+      const i = ENEMY.ENEMY_START + n * 2;
       if (!consumed[i]) reduceSize(i, 0.2);
     }
   
-    if (size[PLAYER_ID] >= 100) {
-      gameState = STATE_WON;
+    if (size[PLAYER.PLAYER_ID] >= 100) {
+      gameState = GAME_STATES.STATE_WON;
     }
   
-    if (size[PLAYER_ID] <= 0 || size[PLAYER_ID + 1] <= 0) {
-      gameState = STATE_GAMEOVER;
+    if (size[PLAYER.PLAYER_ID] <= 0 || size[PLAYER.PLAYER_ID + 1] <= 0) {
+      gameState = GAME_STATES.STATE_GAMEOVER;
     }
+  }
+  function gameLoad(){
+    drawEntity(images.loadingScreen,0,0,canvas.width,canvas.height,0);
+    drawText("Start")
+  }
+  function gameOver(){
+    drawEntity(images.gameOverScreen,0,0,canvas.width,canvas.height,0);  
+  }
+  function gamePaused(){
+    drawEntity(images.pausedScreen,0,0,canvas.width,canvas.height,0); 
+  }
+  function gameWon(){
+    drawEntity(images.gameWonScreen,0,0,canvas.width,canvas.height,0); 
+  }
+  function gamePlaying(){
+    render()
+    update(TIMER.FIXED_STEP);
   }
   function render() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawEntity(images[0],0,0,canvas.width,canvas.height,0);
-    drawEntity(images[3],position[PLAYER_ID],position[PLAYER_ID+1],size[PLAYER_ID],size[PLAYER_ID+1],0);
-    for (let n = 0; n < noOfPearsOnScreen; n++) {
-      const i = PEAR_START + n * 2;
-      if (!consumed[i])  drawEntity(images[1],position[i],position[i+1],size[i],size[i+1],0);;
+    drawEntity(images.backgroud,0,0,canvas.width,canvas.height,0);
+    drawEntity(images.player,position[PLAYER.PLAYER_ID],position[PLAYER.PLAYER_ID+1],size[PLAYER.PLAYER_ID],size[PLAYER.PLAYER_ID+1],0);
+    for (let n = 0; n < PEAR.noOfPearsOnScreen; n++) {
+      const i = PEAR.PEAR_START + n * 2;
+      if (!consumed[i])  drawEntity(images.pear,position[i],position[i+1],size[i],size[i+1],0);;
     }
   
-    for (let n = 0; n < noOfBombsOnScreen; n++) {
-      const i = ENEMY_START + n * 2;
-      if (!consumed[i])  if (!consumed[i])  drawEntity(images[2],position[i],position[i+1],size[i],size[i+1],0);;;
+    for (let n = 0; n < ENEMY.noOfBombsOnScreen; n++) {
+      const i = ENEMY.ENEMY_START + n * 2;
+      if (!consumed[i])  if (!consumed[i])  drawEntity(images.bomb,position[i],position[i+1],size[i],size[i+1],0);;;
     }
-  
-    if (gameState !== STATE_PLAYING) {
-      ctx.fillStyle = "#fff";
-      ctx.font = "32px monospace";
-      ctx.textAlign = "center";
-  
-      if (gameState === STATE_GAMEOVER)
-        ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 30);
-      if (gameState === STATE_WON)
-        ctx.fillText("YOU WIN!", canvas.width / 2, canvas.height / 2 - 30);
-      if (gameState === STATE_PAUSED)
-        ctx.fillText("PAUSED", canvas.width / 2, canvas.height / 2 - 30);
-  
-      if (gameState !== STATE_PAUSED) {
-        ctx.fillStyle = "#333";
+  }
+  function gameStatesEffects(){
+    if(gameState===GAME_STATES.STATE_START){
+    gameLoad()
+      
+    }
+    if(gameState===GAME_STATES.STATE_PLAYING){
+    gamePlaying()
+    }
+    if(gameState==GAME_STATES.STATE_GAMEOVER){
+      gameOver()
+    }
+    if(gameState===GAME_STATES.STATE_PAUSED){
+gamePaused()
+    }
+    if(gameState===GAME_STATES.STATE_WON){
+      gameWon()
+          }
+  }
+  function drawText(text){
+ 
+      ctx.fillText(`${text}`, canvas.width / 2, canvas.height / 2 - 30);
+      ctx.fillStyle = "#333";
         ctx.fillRect(restartBtn.x, restartBtn.y, restartBtn.w, restartBtn.h);
         ctx.fillStyle = "#fff";
         ctx.font = "20px monospace";
-        ctx.fillText("RESTART", canvas.width / 2, restartBtn.y + 30);
-      }
+        ctx.fillText(`${text}`, canvas.width / 2, restartBtn.y + 30)
     }
-  }
+  
   function animate(ts) {
     if(!running) return
     requestAnimationFrame(animate);
   
-    if (!lastTime) lastTime = ts;
-    let dt = (ts - lastTime) / 1000;
-    lastTime = ts;
+    if (!TIMER.lastTime) TIMER.lastTime = ts;
+    let dt = (ts - TIMER.lastTime) / 1000;
+    TIMER.lastTime = ts;
   
-    accumulator += dt;
-    while (accumulator >= FIXED_STEP) {
-      update(FIXED_STEP);
-      accumulator -= FIXED_STEP;
+    TIMER.accumulator += dt;
+    while (TIMER.accumulator >= TIMER.FIXED_STEP) {
+      TIMER.accumulator -= TIMER.FIXED_STEP;
     }
-    render();
+    gameStatesEffects()
   }
   
   resetGame();
